@@ -7,3 +7,14 @@ services:
       - "3001:3000"
     environment:
       - NODE_ENV=production
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
