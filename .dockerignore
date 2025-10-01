@@ -6,3 +6,6 @@ npm-debug.log
 **/*.psd
 **/*.fig
 **/*.sketch
+.next
+out
+dist
