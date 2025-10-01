@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+This is the link to view de page: https://gestion.dolphinesolutions.com/
+
 ## Getting Started
 
 First, run the development server:
