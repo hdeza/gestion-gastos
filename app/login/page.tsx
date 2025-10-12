@@ -2,20 +2,37 @@
 
 import { useState } from "react";
 import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
-
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "../contexts/AuthContext";
+import { LoginCredentials } from "../types/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Solo maqueta, sin lógica de autenticación
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    router.push("/main/game");
+    setError("");
+
+    try {
+      const credentials: LoginCredentials = {
+        username: email,
+        password: password,
+      };
+
+      console.log("Intentando login con:", credentials);
+      await login(credentials);
+      console.log("Login completado, redirigiendo...");
+      router.push("/main/dashboard");
+    } catch (error: any) {
+      console.error("Error en login:", error);
+      setError(error.message || "Error al iniciar sesión");
+    }
   };
 
   return (
@@ -140,11 +157,31 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full h-12 text-sm font-medium text-white hover:opacity-90 rounded-lg shadow-none cursor-pointer"
+              disabled={isLoading}
+              className="w-full h-12 text-sm font-medium text-white hover:opacity-90 rounded-lg shadow-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{ backgroundColor: "#3F3FF3" }}
             >
-              Iniciar Sesión
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar Sesión"
+              )}
             </button>
+
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                ¿No tienes cuenta?{" "}
+                <Link
+                  href="/register"
+                  className="text-[#3F3FF3] hover:underline font-medium"
+                >
+                  Regístrate aquí
+                </Link>
+              </p>
+            </div>
           </form>
         </div>
       </div>

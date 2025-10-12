@@ -9,7 +9,11 @@ import {
   PieChart,
   Plus,
   Gamepad2,
+  LogOut,
+  User,
 } from "lucide-react";
+import ProtectedRoute from "../components/ProtectedRoute";
+import { useAuth } from "../contexts/AuthContext";
 
 type NavItem = {
   label: string;
@@ -43,6 +47,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-dvh bg-neutral-50 text-neutral-900">
@@ -50,7 +55,7 @@ export default function MainLayout({
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 flex-col border-r border-neutral-200 bg-white/80 backdrop-blur">
         <div className="px-5 pt-6 pb-4">
           <div className="text-lg font-semibold tracking-tight">
-            Gestión de Gastos
+            GastoGenius
           </div>
           <div className="text-xs text-neutral-500">para estudiantes</div>
         </div>
@@ -73,7 +78,7 @@ export default function MainLayout({
             );
           })}
         </nav>
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <Link
             href="/main/add-expense-income"
             className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-white shadow-lg shadow-blue-600/20"
@@ -81,13 +86,33 @@ export default function MainLayout({
             <Plus className="h-4 w-4" />
             Nuevo
           </Link>
+
+          {/* User info and logout */}
+          <div className="border-t border-neutral-200 pt-4">
+            <div className="flex items-center gap-3 px-3 py-2 text-sm text-neutral-700">
+              <User className="h-4 w-4" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{user?.nombre}</div>
+                <div className="text-xs text-neutral-500 truncate">
+                  {user?.correo}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main content area with responsive paddings */}
       <main className="md:pl-64 pb-24 md:pb-0">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-          {children}
+          <ProtectedRoute>{children}</ProtectedRoute>
         </div>
       </main>
 
