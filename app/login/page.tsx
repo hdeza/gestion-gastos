@@ -27,8 +27,8 @@ export default function LoginPage() {
 
       console.log("Intentando login con:", credentials);
       await login(credentials);
-      console.log("Login completado, redirigiendo...");
-      router.push("/main/dashboard");
+      console.log("Login completado, redirigiendo al perfil...");
+      router.push("/main/profile");
     } catch (error: any) {
       console.error("Error en login:", error);
       setError(error.message || "Error al iniciar sesión");

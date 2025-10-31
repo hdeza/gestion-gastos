@@ -25,6 +25,17 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface ChangePasswordData {
+  old_password: string;
+  new_password: string;
+}
+
+export interface UpdateProfileData {
+  nombre?: string;
+  moneda_preferida?: string;
+  foto_perfil?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -34,4 +45,8 @@ export interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
+  getProfile: () => Promise<User>;
+  updateProfile: (data: UpdateProfileData) => Promise<void>;
+  changePassword: (data: ChangePasswordData) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }

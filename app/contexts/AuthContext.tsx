@@ -7,6 +7,8 @@ import {
   RegisterData,
   AuthContextType,
   AuthResponse,
+  UpdateProfileData,
+  ChangePasswordData,
 } from "../types/auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,9 +56,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
 
           if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setToken(storedToken);
+            // Cargar información completa del perfil
+            try {
+              const profileResponse = await fetch(
+                `${API_BASE_URL}/api/users/profile`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${storedToken}`,
+                  },
+                }
+              );
+
+              if (profileResponse.ok) {
+                const profileData = await profileResponse.json();
+                setUser(profileData);
+                setToken(storedToken);
+                console.log("Perfil cargado al verificar token:", profileData);
+              } else {
+                // Si falla el perfil, usar info básica de /me
+                const userData = await response.json();
+                setUser(userData);
+                setToken(storedToken);
+                console.warn(
+                  "No se pudo cargar el perfil completo al verificar token"
+                );
+              }
+            } catch (error) {
+              console.error("Error cargando perfil al verificar token:", error);
+              // Si falla, usar info básica
+              const userData = await response.json();
+              setUser(userData);
+              setToken(storedToken);
+            }
           } else {
             localStorage.removeItem("auth_token");
           }
@@ -100,7 +131,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.access_token) {
         localStorage.setItem("auth_token", data.access_token);
         setToken(data.access_token);
-        setUser(data.user || data);
+
+        // Cargar información completa del perfil
+        try {
+          const profileResponse = await fetch(
+            `${API_BASE_URL}/api/users/profile`,
+            {
+              headers: {
+                Authorization: `Bearer ${data.access_token}`,
+              },
+            }
+          );
+
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            setUser(profileData);
+            console.log("Perfil cargado:", profileData);
+          } else {
+            // Si falla, usar la info básica del login
+            setUser(data.user || data);
+            console.warn(
+              "No se pudo cargar el perfil completo, usando info básica"
+            );
+          }
+        } catch (error) {
+          console.error("Error cargando perfil:", error);
+          // Si falla, usar la info básica del login
+          setUser(data.user || data);
+        }
       } else {
         console.error("Formato de respuesta inesperado:", data);
         throw new Error("Formato de respuesta inesperado del servidor");
@@ -157,6 +215,125 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const getProfile = async (): Promise<User> => {
+    if (!token) {
+      throw new Error("No hay token de autenticación");
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al obtener el perfil");
+      }
+
+      const profileData = await response.json();
+      setUser(profileData);
+      return profileData;
+    } catch (error) {
+      console.error("Error obteniendo perfil:", error);
+      throw error;
+    }
+  };
+
+  const updateProfile = async (data: UpdateProfileData): Promise<void> => {
+    if (!token) {
+      throw new Error("No hay token de autenticación");
+    }
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al actualizar el perfil");
+      }
+
+      const updatedUser = await response.json();
+      setUser(updatedUser);
+    } catch (error) {
+      console.error("Error actualizando perfil:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changePassword = async (data: ChangePasswordData): Promise<void> => {
+    if (!token) {
+      throw new Error("No hay token de autenticación");
+    }
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al cambiar la contraseña");
+      }
+
+      // La contraseña se cambió exitosamente
+    } catch (error) {
+      console.error("Error cambiando contraseña:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteAccount = async (): Promise<void> => {
+    if (!token) {
+      throw new Error("No hay token de autenticación");
+    }
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al eliminar la cuenta");
+      }
+
+      // La cuenta se eliminó exitosamente, hacer logout
+      logout();
+    } catch (error) {
+      console.error("Error eliminando cuenta:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -166,6 +343,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     updateUser,
+    getProfile,
+    updateProfile,
+    changePassword,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

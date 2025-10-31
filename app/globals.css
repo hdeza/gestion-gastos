@@ -1,2 +1,74 @@
 @import "tailwindcss";
 
+/* SweetAlert2 Custom Styles */
+.swal2-popup {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+}
+
+/* Base button styles for custom styled buttons */
+.swal2-confirm,
+.swal2-cancel {
+  padding: 0.75rem 1.5rem !important;
+  min-width: 120px !important;
+  height: auto !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+  font-weight: 500 !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.swal2-confirm {
+  background-color: rgb(37 99 235) !important;
+  color: white !important;
+}
+
+.swal2-confirm:hover {
+  background-color: rgb(29 78 216) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgb(37 99 235 / 0.4);
+}
+
+.swal2-cancel {
+  background-color: rgb(107 114 128) !important;
+  color: white !important;
+  margin-left: 0.75rem !important;
+}
+
+.swal2-cancel:hover {
+  background-color: rgb(75 85 99) !important;
+  transform: translateY(-1px);
+}
+
+.swal2-confirm:focus,
+.swal2-cancel:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1) !important;
+}
+
+.swal2-cancel:focus {
+  box-shadow: 0 0 0 3px rgb(107 114 128 / 0.1) !important;
+}
+
+/* Custom danger button for delete operations */
+.swal2-confirm.swal2-danger {
+  background-color: rgb(220 38 38) !important;
+}
+
+.swal2-confirm.swal2-danger:hover {
+  background-color: rgb(185 28 28) !important;
+  box-shadow: 0 4px 12px rgb(220 38 38 / 0.4);
+}
+
+.swal2-confirm.swal2-danger:focus {
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.1) !important;
+}
+

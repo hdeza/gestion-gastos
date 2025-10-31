@@ -32,7 +32,7 @@ const initialGoals: Goal[] = [
 ];
 
 function currency(n: number) {
-  return n.toLocaleString("es-ES", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return n.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 export default function Budget() {

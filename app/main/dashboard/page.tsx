@@ -14,6 +14,7 @@ import {
   Brain,
   Gamepad2,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import {
   PieChart as RePieChart,
@@ -22,8 +23,15 @@ import {
   ResponsiveContainer,
   Label,
 } from "recharts";
+import { incomeService } from "../../services/incomeService";
+import { categoryService } from "../../services/categoryService";
+import { Income } from "../../types/income";
+import { Category } from "../../types/category";
+import { useAuth } from "../../contexts/AuthContext";
+import { formatCurrency } from "../../utils/currency";
+import Swal from "sweetalert2";
 
-type Category = {
+type CategoryDisplay = {
   id: string;
   name: string;
   color: string;
@@ -32,55 +40,99 @@ type Category = {
   icon: React.ReactNode;
 };
 
-const currency = (value: number) =>
-  value.toLocaleString("es-ES", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-
-const CATEGORIES: Category[] = [
-  {
-    id: "rent",
-    name: "Alquiler",
-    color: "#f5b942",
-    spent: 360000,
-    budget: 380000,
-    icon: <House className="h-5 w-5" />,
-  },
-  {
-    id: "food",
-    name: "Alimentación",
-    color: "#77bdf3",
-    spent: 200000,
-    budget: 260000,
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-  },
-  {
-    id: "services",
-    name: "Servicios",
-    color: "#f39ad2",
-    spent: 60000,
-    budget: 90000,
-    icon: <Droplets className="h-5 w-5" />,
-  },
-  {
-    id: "transit",
-    name: "Transporte",
-    color: "#7dd3a8",
-    spent: 40000,
-    budget: 80000,
-    icon: <Bus className="h-5 w-5" />,
-  },
-];
-
 export default function Dashboard() {
   const router = useRouter();
-  const total = CATEGORIES.reduce((acc, c) => acc + c.spent, 0);
-  const budget = 950000;
-  const available = Math.max(budget - total, 0);
+  const { user } = useAuth();
+  const [incomes, setIncomes] = React.useState<Income[]>([]);
+  const [categories, setCategories] = React.useState<Category[]>([]);
+  const [categoryDisplays, setCategoryDisplays] = React.useState<CategoryDisplay[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [selectedMonth, setSelectedMonth] = React.useState(new Date());
 
-  const pieData = CATEGORIES.map((c) => ({
+  // Cargar datos al montar el componente
+  React.useEffect(() => {
+    loadDashboardData();
+  }, [selectedMonth]);
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+
+      // Cargar ingresos del mes actual
+      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+
+      const [incomesData, categoriesData] = await Promise.all([
+        incomeService.getIncomesByDateRange(
+          startDate.toISOString().split('T')[0],
+          endDate.toISOString().split('T')[0]
+        ),
+        categoryService.getCategories({ tipo: 'ingreso' })
+      ]);
+
+      console.log('Datos recibidos de la API:', {
+        incomes: incomesData,
+        categories: categoriesData
+      });
+
+      setIncomes(incomesData);
+      setCategories(categoriesData);
+
+      // Filtrar categorías que no tienen ID válido
+      const validCategories = categoriesData.filter(cat => cat.id_categoria !== undefined && cat.id_categoria !== null);
+      console.log(`Categorías totales: ${categoriesData.length}, válidas: ${validCategories.length}`);
+      if (validCategories.length !== categoriesData.length) {
+        console.log('Categorías filtradas:', categoriesData.filter(cat => cat.id_categoria === undefined || cat.id_categoria === null));
+      }
+
+      // Crear display categories con datos reales
+      const displays: CategoryDisplay[] = validCategories.map((cat, index) => {
+        const categoryIncomes = incomesData.filter(inc => inc.id_categoria === cat.id_categoria);
+        const totalSpent = categoryIncomes.reduce((sum, inc) => sum + Number(inc.monto), 0);
+
+        // Colores por defecto si no tienen
+        const defaultColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+        const color = cat.color || defaultColors[index % defaultColors.length];
+
+        // Iconos por defecto
+        const defaultIcons = [<House className="h-5 w-5" />, <UtensilsCrossed className="h-5 w-5" />, <Droplets className="h-5 w-5" />, <Bus className="h-5 w-5" />, <Smartphone className="h-5 w-5" />, <Lightbulb className="h-5 w-5" />];
+        const icon = defaultIcons[index % defaultIcons.length];
+
+        // Presupuesto estimado (podría venir de la API después)
+        const estimatedBudget = totalSpent * 1.2; // 20% más que lo gastado
+
+        return {
+          id: cat.id_categoria.toString(),
+          name: cat.nombre || 'Sin nombre',
+          color,
+          spent: totalSpent,
+          budget: estimatedBudget,
+          icon,
+        };
+      });
+
+      setCategoryDisplays(displays);
+
+      console.log('Displays creados:', displays);
+
+    } catch (error) {
+      console.error('Error cargando datos del dashboard:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'No se pudieron cargar los datos del dashboard',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalIncome = incomes.reduce((acc, inc) => acc + Number(inc.monto), 0);
+  const budget = categoryDisplays.reduce((acc, c) => acc + c.budget, 0);
+  const available = Math.max(budget - totalIncome, 0);
+
+  const pieData = categoryDisplays.map((c) => ({
     name: c.name,
     value: c.spent,
     color: c.color,
@@ -92,16 +144,20 @@ export default function Dashboard() {
       <div className="flex items-center justify-between gap-3">
         <button
           aria-label="Mes anterior"
+          onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
           className="rounded-full p-2 hover:bg-neutral-100"
+          disabled={isLoading}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="text-sm font-medium text-neutral-600">
-          Septiembre 2024
+          {selectedMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
         </div>
         <button
           aria-label="Mes siguiente"
+          onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
           className="rounded-full p-2 hover:bg-neutral-100"
+          disabled={isLoading}
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -109,33 +165,42 @@ export default function Dashboard() {
 
       {/* Card resumen */}
       <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-neutral-600 text-sm">
-              Disponible para gastar
-            </div>
-            <div className="text-2xl font-semibold text-neutral-900">
-              {currency(available)}
-            </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+            <span className="ml-2 text-neutral-500">Cargando datos...</span>
           </div>
-          <div className="h-14 w-14 rounded-full bg-blue-50 ring-8 ring-blue-100 flex items-center justify-center">
-            <div className="h-6 w-6 rounded-full bg-blue-600" />
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 divide-x divide-neutral-200 rounded-xl border border-neutral-200">
-          <div className="p-3">
-            <div className="text-neutral-500 text-xs">Gastos totales</div>
-            <div className="text-neutral-900 font-medium">
-              {currency(total)}
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-neutral-600 text-sm">
+                  Ingresos del mes
+                </div>
+                <div className="text-2xl font-semibold text-neutral-900">
+                  {formatCurrency(totalIncome, user)}
+                </div>
+              </div>
+              <div className="h-14 w-14 rounded-full bg-emerald-50 ring-8 ring-emerald-100 flex items-center justify-center">
+                <div className="h-6 w-6 rounded-full bg-emerald-600" />
+              </div>
             </div>
-          </div>
-          <div className="p-3">
-            <div className="text-neutral-500 text-xs">Presupuesto</div>
-            <div className="text-neutral-900 font-medium">
-              {currency(budget)}
+            <div className="mt-4 grid grid-cols-2 divide-x divide-neutral-200 rounded-xl border border-neutral-200">
+              <div className="p-3">
+                <div className="text-neutral-500 text-xs">Categorías activas</div>
+                <div className="text-neutral-900 font-medium">
+                  {categoryDisplays.length}
+                </div>
+              </div>
+              <div className="p-3">
+                <div className="text-neutral-500 text-xs">Presupuesto estimado</div>
+                <div className="text-neutral-900 font-medium">
+                  {formatCurrency(budget, user)}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </section>
 
       {/* Tokens de IA */}
@@ -195,99 +260,126 @@ export default function Dashboard() {
         {/* Donut chart */}
         <div className="lg:col-span-1 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
           <div className="h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <RePieChart>
-                <Pie
-                  data={pieData}
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                  <Label
-                    content={({ viewBox }) => {
-                      if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                        const cx = (viewBox as any).cx as number;
-                        const cy = (viewBox as any).cy as number;
-                        return (
-                          <text
-                            x={cx}
-                            y={cy}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                          >
-                            <tspan fill="#64748b" fontSize="12">
-                              Total
-                            </tspan>
-                            <tspan
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+              </div>
+            ) : pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RePieChart>
+                  <Pie
+                    data={pieData}
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          const cx = (viewBox as any).cx as number;
+                          const cy = (viewBox as any).cy as number;
+                          return (
+                            <text
                               x={cx}
-                              y={cy + 18}
-                              fill="#0f172a"
-                              fontSize="18"
-                              fontWeight="600"
+                              y={cy}
+                              textAnchor="middle"
+                              dominantBaseline="central"
                             >
-                              {currency(total)}
-                            </tspan>
-                          </text>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </Pie>
-              </RePieChart>
-            </ResponsiveContainer>
+                              <tspan fill="#64748b" fontSize="12">
+                                Total
+                              </tspan>
+                              <tspan
+                                x={cx}
+                                y={cy + 18}
+                                fill="#0f172a"
+                                fontSize="18"
+                                fontWeight="600"
+                              >
+                                {formatCurrency(totalIncome, user)}
+                              </tspan>
+                            </text>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </Pie>
+                </RePieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-neutral-500">
+                  <div className="text-sm">No hay datos</div>
+                  <div className="text-xs">Registra ingresos para ver estadísticas</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Lista de categorías */}
         <div className="lg:col-span-2 space-y-4">
-          {CATEGORIES.map((c) => {
-            const percentage = Math.min(
-              Math.round((c.spent / c.budget) * 100),
-              100
-            );
-            const availableCat = Math.max(c.budget - c.spent, 0);
-            return (
-              <div
-                key={c.id}
-                className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-xl grid place-items-center"
-                      style={{ backgroundColor: `${c.color}20` }}
-                    >
-                      <span style={{ color: c.color }}>{c.icon}</span>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+              <span className="ml-2 text-neutral-500">Cargando categorías...</span>
+            </div>
+          ) : categoryDisplays.length > 0 ? (
+            categoryDisplays.map((c) => {
+              const percentage = Math.min(
+                Math.round((c.spent / c.budget) * 100),
+                100
+              );
+              const availableCat = Math.max(c.budget - c.spent, 0);
+              return (
+                <div
+                  key={c.id}
+                  className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-10 w-10 rounded-xl grid place-items-center"
+                        style={{ backgroundColor: `${c.color}20` }}
+                      >
+                        <span style={{ color: c.color }}>{c.icon}</span>
+                      </div>
+                      <div className="font-medium text-neutral-900">{c.name}</div>
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600">
+                        {percentage}%
+                      </span>
                     </div>
-                    <div className="font-medium text-neutral-900">{c.name}</div>
-                    <span className="ml-2 rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600">
-                      {percentage}%
-                    </span>
+                    <div className="text-neutral-900 font-medium">
+                      {formatCurrency(c.spent, user)}
+                    </div>
                   </div>
-                  <div className="text-neutral-900 font-medium">
-                    {currency(c.spent)}
+                  <div className="mt-2 text-xs text-neutral-500">
+                    Presupuesto: {formatCurrency(c.budget, user)}
+                  </div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${percentage}%`,
+                        backgroundColor: c.color,
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-neutral-500">
-                  Disponible: {currency(availableCat)}
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${percentage}%`,
-                      backgroundColor: c.color,
-                    }}
-                  />
-                </div>
+              );
+            })
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center text-neutral-500">
+                <div className="text-sm">No hay categorías</div>
+                <div className="text-xs">Crea categorías para organizar tus ingresos</div>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       </section>
 

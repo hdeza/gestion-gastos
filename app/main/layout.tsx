@@ -11,6 +11,9 @@ import {
   Gamepad2,
   LogOut,
   User,
+  Tag,
+  DollarSign,
+  Loader2,
 } from "lucide-react";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../contexts/AuthContext";
@@ -28,6 +31,16 @@ const navItems: NavItem[] = [
     icon: <Home className="h-5 w-5" />,
   },
   {
+    label: "Ingresos",
+    href: "/main/incomes",
+    icon: <DollarSign className="h-5 w-5" />,
+  },
+  {
+    label: "Categorías",
+    href: "/main/categories",
+    icon: <Tag className="h-5 w-5" />,
+  },
+  {
     label: "Puzzle IA",
     href: "/main/game",
     icon: <Gamepad2 className="h-5 w-5" />,
@@ -39,6 +52,11 @@ const navItems: NavItem[] = [
     icon: <Wallet className="h-5 w-5" />,
   },
   { label: "Reportes", href: "#", icon: <PieChart className="h-5 w-5" /> },
+  {
+    label: "Perfil",
+    href: "/main/profile",
+    icon: <User className="h-5 w-5" />,
+  },
 ];
 
 export default function MainLayout({
@@ -47,7 +65,19 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
+
+  // Mostrar loading mientras se carga la información del usuario
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-neutral-600">Cargando información del perfil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-neutral-50 text-neutral-900">
@@ -119,7 +149,13 @@ export default function MainLayout({
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-neutral-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="mx-auto max-w-3xl grid grid-cols-5 items-end gap-1 px-4 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
-          {navItems.slice(0, 3).map((item) => {
+          {/* Mostrar las páginas más importantes en móvil */}
+          {[
+            navItems[0], // Inicio
+            navItems[1], // Ingresos
+            navItems[2], // Categorías
+            navItems[7], // Perfil
+          ].map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link
@@ -143,22 +179,6 @@ export default function MainLayout({
               <Plus className="h-6 w-6" />
             </Link>
           </div>
-
-          {navItems.slice(3).map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex flex-col items-center gap-1 rounded-md px-3 py-2 text-xs ${
-                  active ? "text-blue-600" : "text-neutral-500"
-                }`}
-              >
-                <span className="[&>svg]:h-6 [&>svg]:w-6">{item.icon}</span>
-                {item.label}
-              </Link>
-            );
-          })}
         </div>
       </nav>
     </div>
