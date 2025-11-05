@@ -135,6 +135,16 @@ export default function CategoriesPage() {
   };
 
   const handleDeleteCategory = async (category: Category) => {
+    if (category.es_global) {
+      Swal.fire({
+        title: 'No permitido',
+        text: 'Las categorías globales no pueden ser eliminadas',
+        icon: 'warning',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: `¿Deseas eliminar la categoría "${category.nombre}"? Esta acción no se puede deshacer.`,
@@ -370,8 +380,13 @@ export default function CategoriesPage() {
                     </button>
                     <button
                       onClick={() => handleDeleteCategory(category)}
-                      className="p-2 text-neutral-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                      title="Eliminar"
+                      className={`p-2 rounded-lg ${
+                        category.es_global
+                          ? 'text-neutral-300 cursor-not-allowed'
+                          : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                      title={category.es_global ? 'No se puede eliminar una categoría global' : 'Eliminar'}
+                      disabled={category.es_global}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

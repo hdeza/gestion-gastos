@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { User, Settings, Key, Trash2, Edit3, Save, X } from "lucide-react";
 import { User as UserType } from "../../types/auth";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 interface ProfileFormData {
   nombre: string;
@@ -19,17 +19,26 @@ interface PasswordFormData {
 }
 
 const ProfilePage: React.FC = () => {
-  const { user, getProfile, updateProfile, changePassword, deleteAccount, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'view' | 'edit' | 'password' | 'settings'>('view');
+  const {
+    user,
+    getProfile,
+    updateProfile,
+    changePassword,
+    deleteAccount,
+    isLoading,
+  } = useAuth();
+  const [activeTab, setActiveTab] = useState<
+    "view" | "edit" | "password" | "settings"
+  >("view");
   const [profileData, setProfileData] = useState<ProfileFormData>({
-    nombre: '',
-    moneda_preferida: '',
-    foto_perfil: ''
+    nombre: "",
+    moneda_preferida: "",
+    foto_perfil: "",
   });
   const [passwordData, setPasswordData] = useState<PasswordFormData>({
-    old_password: '',
-    new_password: '',
-    confirm_password: ''
+    old_password: "",
+    new_password: "",
+    confirm_password: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,11 +46,11 @@ const ProfilePage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const currencies = [
-    { value: 'COP', label: 'Peso Colombiano (COP)' },
-    { value: 'USD', label: 'Dólar Estadounidense (USD)' },
-    { value: 'EUR', label: 'Euro (EUR)' },
-    { value: 'MXN', label: 'Peso Mexicano (MXN)' },
-    { value: 'ARS', label: 'Peso Argentino (ARS)' },
+    { value: "COP", label: "Peso Colombiano (COP)" },
+    { value: "USD", label: "Dólar Estadounidense (USD)" },
+    { value: "EUR", label: "Euro (EUR)" },
+    { value: "MXN", label: "Peso Mexicano (MXN)" },
+    { value: "ARS", label: "Peso Argentino (ARS)" },
   ];
 
   // Funciones de utilidad para mostrar mensajes con SweetAlert2
@@ -49,32 +58,81 @@ const ProfilePage: React.FC = () => {
     await Swal.fire({
       title,
       text,
-      icon: 'success',
+      icon: "success",
       timer: 2000,
       showConfirmButton: false,
-      buttonsStyling: false
+      buttonsStyling: false,
     });
+  };
+
+  // Asegura que la cadena sea renderizable en <img src>
+  const toRenderableSrc = (value?: string) => {
+    if (!value) return "";
+    return value.startsWith("data:") ? value : `data:image/*;base64,${value}`;
+  };
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const readFileAsDataUrl = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setProfileData((prev) => ({ ...prev, foto_perfil: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    readFileAsDataUrl(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    readFileAsDataUrl(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
+  };
+
+  const normalizeImageForSaving = (value?: string) => {
+    if (!value) return undefined;
+    if (value.startsWith("data:")) {
+      const commaIndex = value.indexOf(",");
+      return commaIndex >= 0 ? value.slice(commaIndex + 1) : value;
+    }
+    return value;
   };
 
   const showErrorMessage = async (title: string, text: string) => {
     await Swal.fire({
       title,
       text,
-      icon: 'error',
-      confirmButtonText: 'Entendido',
+      icon: "error",
+      confirmButtonText: "Entendido",
       buttonsStyling: false,
       customClass: {
-        confirmButton: 'swal2-confirm'
-      }
+        confirmButton: "swal2-confirm",
+      },
     });
   };
 
   useEffect(() => {
     if (user) {
       setProfileData({
-        nombre: user.nombre || '',
-        moneda_preferida: user.moneda_preferida || 'COP',
-        foto_perfil: user.foto_perfil || ''
+        nombre: user.nombre || "",
+        moneda_preferida: user.moneda_preferida || "COP",
+        foto_perfil: user.foto_perfil || "",
       });
     }
   }, [user]);
@@ -82,7 +140,7 @@ const ProfilePage: React.FC = () => {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileData.nombre.trim()) {
-      await showErrorMessage('Campo obligatorio', 'El nombre es obligatorio');
+      await showErrorMessage("Campo obligatorio", "El nombre es obligatorio");
       return;
     }
 
@@ -94,12 +152,18 @@ const ProfilePage: React.FC = () => {
       await updateProfile({
         nombre: profileData.nombre,
         moneda_preferida: profileData.moneda_preferida,
-        foto_perfil: profileData.foto_perfil || undefined
+        foto_perfil: normalizeImageForSaving(profileData.foto_perfil),
       });
-      await showSuccessMessage('Perfil actualizado', 'Tu perfil ha sido actualizado exitosamente.');
+      await showSuccessMessage(
+        "Perfil actualizado",
+        "Tu perfil ha sido actualizado exitosamente."
+      );
       setIsEditing(false);
     } catch (err) {
-      await showErrorMessage('Error', err instanceof Error ? err.message : 'Error al actualizar el perfil');
+      await showErrorMessage(
+        "Error",
+        err instanceof Error ? err.message : "Error al actualizar el perfil"
+      );
     } finally {
       setLoading(false);
     }
@@ -109,12 +173,18 @@ const ProfilePage: React.FC = () => {
     e.preventDefault();
 
     if (passwordData.new_password !== passwordData.confirm_password) {
-      await showErrorMessage('Contraseñas no coinciden', 'Las contraseñas nuevas no coinciden');
+      await showErrorMessage(
+        "Contraseñas no coinciden",
+        "Las contraseñas nuevas no coinciden"
+      );
       return;
     }
 
     if (passwordData.new_password.length < 6) {
-      await showErrorMessage('Contraseña muy corta', 'La nueva contraseña debe tener al menos 6 caracteres');
+      await showErrorMessage(
+        "Contraseña muy corta",
+        "La nueva contraseña debe tener al menos 6 caracteres"
+      );
       return;
     }
 
@@ -125,12 +195,22 @@ const ProfilePage: React.FC = () => {
     try {
       await changePassword({
         old_password: passwordData.old_password,
-        new_password: passwordData.new_password
+        new_password: passwordData.new_password,
       });
-      await showSuccessMessage('Contraseña cambiada', 'Tu contraseña ha sido cambiada exitosamente.');
-      setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+      await showSuccessMessage(
+        "Contraseña cambiada",
+        "Tu contraseña ha sido cambiada exitosamente."
+      );
+      setPasswordData({
+        old_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
     } catch (err) {
-      await showErrorMessage('Error', err instanceof Error ? err.message : 'Error al cambiar la contraseña');
+      await showErrorMessage(
+        "Error",
+        err instanceof Error ? err.message : "Error al cambiar la contraseña"
+      );
     } finally {
       setLoading(false);
     }
@@ -138,18 +218,18 @@ const ProfilePage: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     const result = await Swal.fire({
-      title: '¿Eliminar cuenta permanentemente?',
-      text: 'Esta acción no se puede deshacer. Se eliminarán todos tus datos, gastos, ingresos y configuraciones.',
-      icon: 'warning',
+      title: "¿Eliminar cuenta permanentemente?",
+      text: "Esta acción no se puede deshacer. Se eliminarán todos tus datos, gastos, ingresos y configuraciones.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar cuenta',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: "Sí, eliminar cuenta",
+      cancelButtonText: "Cancelar",
       reverseButtons: true,
       buttonsStyling: false,
       customClass: {
-        confirmButton: 'swal2-confirm',
-        cancelButton: 'swal2-cancel'
-      }
+        confirmButton: "swal2-confirm",
+        cancelButton: "swal2-cancel",
+      },
     });
 
     if (!result.isConfirmed) {
@@ -158,18 +238,18 @@ const ProfilePage: React.FC = () => {
 
     // Segunda confirmación para mayor seguridad
     const secondResult = await Swal.fire({
-      title: 'Última confirmación',
-      text: '¿Estás completamente seguro? Esta es tu última oportunidad para cancelar.',
-      icon: 'error',
+      title: "Última confirmación",
+      text: "¿Estás completamente seguro? Esta es tu última oportunidad para cancelar.",
+      icon: "error",
       showCancelButton: true,
-      confirmButtonText: 'Eliminar definitivamente',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: "Eliminar definitivamente",
+      cancelButtonText: "Cancelar",
       reverseButtons: true,
       buttonsStyling: false,
       customClass: {
-        confirmButton: 'swal2-confirm swal2-danger',
-        cancelButton: 'swal2-cancel'
-      }
+        confirmButton: "swal2-confirm swal2-danger",
+        cancelButton: "swal2-cancel",
+      },
     });
 
     if (!secondResult.isConfirmed) {
@@ -183,22 +263,30 @@ const ProfilePage: React.FC = () => {
       await deleteAccount();
 
       // Mostrar mensaje de éxito antes del logout automático
-      await showSuccessMessage('Cuenta eliminada', 'Tu cuenta ha sido eliminada permanentemente.');
+      await showSuccessMessage(
+        "Cuenta eliminada",
+        "Tu cuenta ha sido eliminada permanentemente."
+      );
 
       // El logout se maneja automáticamente en deleteAccount
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar la cuenta');
+      setError(
+        err instanceof Error ? err.message : "Error al eliminar la cuenta"
+      );
       setLoading(false);
 
-      await showErrorMessage('Error', err instanceof Error ? err.message : 'Error al eliminar la cuenta');
+      await showErrorMessage(
+        "Error",
+        err instanceof Error ? err.message : "Error al eliminar la cuenta"
+      );
     }
   };
 
   const tabs = [
-    { id: 'view' as const, label: 'Ver Perfil', icon: User },
-    { id: 'edit' as const, label: 'Editar Perfil', icon: Edit3 },
-    { id: 'password' as const, label: 'Cambiar Contraseña', icon: Key },
-    { id: 'settings' as const, label: 'Configuración', icon: Settings },
+    { id: "view" as const, label: "Ver Perfil", icon: User },
+    { id: "edit" as const, label: "Editar Perfil", icon: Edit3 },
+    { id: "password" as const, label: "Cambiar Contraseña", icon: Key },
+    { id: "settings" as const, label: "Configuración", icon: Settings },
   ];
 
   if (isLoading && !user) {
@@ -215,7 +303,9 @@ const ProfilePage: React.FC = () => {
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-200">
           <h1 className="text-2xl font-semibold text-neutral-900">Mi Perfil</h1>
-          <p className="text-neutral-600 mt-1">Gestiona tu información personal y configuraciones de cuenta</p>
+          <p className="text-neutral-600 mt-1">
+            Gestiona tu información personal y configuraciones de cuenta
+          </p>
         </div>
 
         {/* Tabs */}
@@ -229,8 +319,8 @@ const ProfilePage: React.FC = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -257,13 +347,13 @@ const ProfilePage: React.FC = () => {
           )}
 
           {/* View Profile Tab */}
-          {activeTab === 'view' && user && (
+          {activeTab === "view" && user && (
             <div className="space-y-6">
               <div className="flex items-center gap-6">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
                   {user.foto_perfil ? (
                     <img
-                      src={user.foto_perfil}
+                      src={toRenderableSrc(user.foto_perfil)}
                       alt={user.nombre}
                       className="w-full h-full rounded-full object-cover"
                     />
@@ -272,10 +362,13 @@ const ProfilePage: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-neutral-900">{user.nombre}</h2>
+                  <h2 className="text-xl font-semibold text-neutral-900">
+                    {user.nombre}
+                  </h2>
                   <p className="text-neutral-600">{user.correo}</p>
                   <p className="text-sm text-neutral-500 mt-1">
-                    Miembro desde {new Date(user.fecha_creacion).toLocaleDateString('es-ES')}
+                    Miembro desde{" "}
+                    {new Date(user.fecha_creacion).toLocaleDateString("es-ES")}
                   </p>
                 </div>
               </div>
@@ -283,24 +376,35 @@ const ProfilePage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Nombre</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Nombre
+                    </label>
                     <p className="mt-1 text-neutral-900">{user.nombre}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Correo Electrónico</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Correo Electrónico
+                    </label>
                     <p className="mt-1 text-neutral-900">{user.correo}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Moneda Preferida</label>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Moneda Preferida
+                    </label>
                     <p className="mt-1 text-neutral-900">
-                      {currencies.find(c => c.value === user.moneda_preferida)?.label || user.moneda_preferida}
+                      {currencies.find((c) => c.value === user.moneda_preferida)
+                        ?.label || user.moneda_preferida}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">ID de Usuario</label>
-                    <p className="mt-1 text-neutral-900 font-mono text-sm">{user.id}</p>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      ID de Usuario
+                    </label>
+                    <p className="mt-1 text-neutral-900 font-mono text-sm">
+                      {user.id}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -308,13 +412,13 @@ const ProfilePage: React.FC = () => {
           )}
 
           {/* Edit Profile Tab */}
-          {activeTab === 'edit' && (
+          {activeTab === "edit" && (
             <form onSubmit={handleProfileSubmit} className="space-y-6">
               <div className="flex items-center gap-6">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
                   {profileData.foto_perfil ? (
                     <img
-                      src={profileData.foto_perfil}
+                      src={toRenderableSrc(profileData.foto_perfil)}
                       alt="Preview"
                       className="w-full h-full rounded-full object-cover"
                     />
@@ -324,15 +428,41 @@ const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Foto de Perfil (URL)
+                    Foto de Perfil (arrastra y suelta o selecciona)
                   </label>
+                  <div
+                    onClick={openFileDialog}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className="w-full px-3 py-6 border-2 border-dashed border-neutral-300 rounded-lg text-center cursor-pointer hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <p className="text-sm text-neutral-600">
+                      Arrastra una imagen aquí o haz clic para seleccionar
+                    </p>
+                  </div>
                   <input
-                    type="url"
-                    value={profileData.foto_perfil}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, foto_perfil: e.target.value }))}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://ejemplo.com/foto.jpg"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
                   />
+                  {profileData.foto_perfil && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            foto_perfil: "",
+                          }))
+                        }
+                        className="text-sm text-neutral-600 hover:text-neutral-800 underline"
+                      >
+                        Quitar imagen
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -345,7 +475,12 @@ const ProfilePage: React.FC = () => {
                     type="text"
                     required
                     value={profileData.nombre}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, nombre: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        nombre: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Tu nombre completo"
                   />
@@ -357,7 +492,12 @@ const ProfilePage: React.FC = () => {
                   </label>
                   <select
                     value={profileData.moneda_preferida}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, moneda_preferida: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        moneda_preferida: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {currencies.map((currency) => (
@@ -376,16 +516,16 @@ const ProfilePage: React.FC = () => {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="h-4 w-4" />
-                  {loading ? 'Guardando...' : 'Guardar Cambios'}
+                  {loading ? "Guardando..." : "Guardar Cambios"}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     if (user) {
                       setProfileData({
-                        nombre: user.nombre || '',
-                        moneda_preferida: user.moneda_preferida || 'COP',
-                        foto_perfil: user.foto_perfil || ''
+                        nombre: user.nombre || "",
+                        moneda_preferida: user.moneda_preferida || "COP",
+                        foto_perfil: user.foto_perfil || "",
                       });
                     }
                     setIsEditing(false);
@@ -400,8 +540,11 @@ const ProfilePage: React.FC = () => {
           )}
 
           {/* Change Password Tab */}
-          {activeTab === 'password' && (
-            <form onSubmit={handlePasswordSubmit} className="space-y-6 max-w-md">
+          {activeTab === "password" && (
+            <form
+              onSubmit={handlePasswordSubmit}
+              className="space-y-6 max-w-md"
+            >
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Contraseña Actual *
@@ -410,7 +553,12 @@ const ProfilePage: React.FC = () => {
                   type="password"
                   required
                   value={passwordData.old_password}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, old_password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordData((prev) => ({
+                      ...prev,
+                      old_password: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Tu contraseña actual"
                 />
@@ -424,7 +572,12 @@ const ProfilePage: React.FC = () => {
                   type="password"
                   required
                   value={passwordData.new_password}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordData((prev) => ({
+                      ...prev,
+                      new_password: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Nueva contraseña (mínimo 6 caracteres)"
                   minLength={6}
@@ -439,7 +592,12 @@ const ProfilePage: React.FC = () => {
                   type="password"
                   required
                   value={passwordData.confirm_password}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                  onChange={(e) =>
+                    setPasswordData((prev) => ({
+                      ...prev,
+                      confirm_password: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Repite la nueva contraseña"
                   minLength={6}
@@ -452,22 +610,25 @@ const ProfilePage: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Key className="h-4 w-4" />
-                {loading ? 'Cambiando...' : 'Cambiar Contraseña'}
+                {loading ? "Cambiando..." : "Cambiar Contraseña"}
               </button>
             </form>
           )}
 
           {/* Settings Tab */}
-          {activeTab === 'settings' && (
+          {activeTab === "settings" && (
             <div className="space-y-6">
               <div className="border border-red-200 rounded-lg p-6 bg-red-50">
                 <div className="flex items-start gap-3">
                   <Trash2 className="h-5 w-5 text-red-600 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-medium text-red-900">Eliminar Cuenta</h3>
+                    <h3 className="text-lg font-medium text-red-900">
+                      Eliminar Cuenta
+                    </h3>
                     <p className="text-red-700 mt-1">
-                      Esta acción eliminará permanentemente tu cuenta y todos tus datos asociados.
-                      No podrás recuperar tu información después de eliminar la cuenta.
+                      Esta acción eliminará permanentemente tu cuenta y todos
+                      tus datos asociados. No podrás recuperar tu información
+                      después de eliminar la cuenta.
                     </p>
                     <button
                       onClick={handleDeleteAccount}
@@ -475,7 +636,7 @@ const ProfilePage: React.FC = () => {
                       className="mt-4 flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="h-4 w-4" />
-                      {loading ? 'Eliminando...' : 'Eliminar Cuenta'}
+                      {loading ? "Eliminando..." : "Eliminar Cuenta"}
                     </button>
                   </div>
                 </div>
