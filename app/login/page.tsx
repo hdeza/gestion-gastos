@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { LoginCredentials } from "../types/auth";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -27,8 +28,11 @@ export default function LoginPage() {
 
       console.log("Intentando login con:", credentials);
       await login(credentials);
-      console.log("Login completado, redirigiendo al perfil...");
-      router.push("/main/profile");
+      console.log("Login completado, redirigiendo...");
+      
+      // Redirigir a la URL especificada o al perfil por defecto
+      const redirect = searchParams.get("redirect");
+      router.push(redirect || "/main/profile");
     } catch (error: any) {
       console.error("Error en login:", error);
       setError(error.message || "Error al iniciar sesión");
@@ -186,5 +190,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#3F3FF3]" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

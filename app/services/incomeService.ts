@@ -151,6 +151,19 @@ class IncomeService {
 
     return response.json();
   }
+
+  async getGroupTotalIncome(groupId: number): Promise<IncomeTotal> {
+    const response = await fetch(`${API_BASE_URL}/api/incomes/group/${groupId}/total/amount`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Error al obtener el total de ingresos del grupo');
+    }
+
+    return response.json();
+  }
 }
 
 export const incomeService = new IncomeService();

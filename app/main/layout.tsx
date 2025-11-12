@@ -14,6 +14,9 @@ import {
   Tag,
   DollarSign,
   Loader2,
+  Users,
+  CreditCard,
+  Target,
 } from "lucide-react";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../contexts/AuthContext";
@@ -36,9 +39,24 @@ const navItems: NavItem[] = [
     icon: <DollarSign className="h-5 w-5" />,
   },
   {
+    label: "Gastos",
+    href: "/main/expenses",
+    icon: <CreditCard className="h-5 w-5" />,
+  },
+  {
     label: "Categorías",
     href: "/main/categories",
     icon: <Tag className="h-5 w-5" />,
+  },
+  {
+    label: "Grupos",
+    href: "/main/groups",
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    label: "Metas",
+    href: "/main/goals",
+    icon: <Target className="h-5 w-5" />,
   },
   {
     label: "Puzzle IA",
